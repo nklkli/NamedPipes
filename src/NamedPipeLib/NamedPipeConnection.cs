@@ -8,8 +8,8 @@ public class NamedPipeConnection : IDisposable
     private readonly string _myName;
     private readonly string _partnerName;
     private bool _connectionToPartnerEstablashed = false;
-    NamedPipeServerStream _in;
-    NamedPipeClientStream _out;
+    NamedPipeClientStream _in;
+    NamedPipeServerStream _out;
     CancellationTokenSource _cancellationTokenSource;
     object _lock = new object();
 
@@ -51,13 +51,13 @@ public class NamedPipeConnection : IDisposable
     {
         try
         {
-            _in = new NamedPipeServerStream(
+            _out = new NamedPipeServerStream(
                pipeName: _myName,
-               direction: PipeDirection.In,
+               direction: PipeDirection.Out,
                maxNumberOfServerInstances: 1,
                transmissionMode: PipeTransmissionMode.Message,
                options: PipeOptions.None);
-            await _in.WaitForConnectionAsync(_cancellationTokenSource.Token);
+            await _out.WaitForConnectionAsync(_cancellationTokenSource.Token);
             Connecting?.Invoke(this, "Server pipe accepted connection from client.");
             FireConnectedEvent();
             _ = Task.Run(ReadUntilDisconnected);
@@ -73,12 +73,12 @@ public class NamedPipeConnection : IDisposable
     {
         try
         {
-            _out = new NamedPipeClientStream(
+            _in = new NamedPipeClientStream(
                 serverName: ".",
                 pipeName: _partnerName,
-                direction: PipeDirection.Out);
-            await _out.ConnectAsync(_cancellationTokenSource.Token);
-            _out.ReadMode = PipeTransmissionMode.Message;
+                direction: PipeDirection.In);
+            await _in.ConnectAsync(_cancellationTokenSource.Token);
+            _in.ReadMode = PipeTransmissionMode.Message;
             Connecting?.Invoke(this, "Client pipe connected to server pipe.");
             FireConnectedEvent();
         }
