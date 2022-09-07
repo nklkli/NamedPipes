@@ -37,3 +37,5 @@ In VS, click on `Start without Debugging`.
 Type some text in one of the apps and see your message appear
 instantly in the other app.
 
+Try to restart one app; the connection should be established after restart.
+

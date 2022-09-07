@@ -24,9 +24,19 @@ public partial class Form1 : Form
         _pipe.OnError += _namedPipeServer_OnError;
         _pipe.Disconnected += _namedPipePeer_Disconnected;
         _pipe.OnNewMessage += _namedPipePeer_OnNewMessage;
+        _pipe.Connecting += _pipe_Connecting;
         _pipe.Connect();
     }
 
+    private void _pipe_Connecting(object? sender, string msg)
+    {
+        Invoke(() =>
+        {
+            textBoxMessages.AppendText($"Connecting: ");
+            textBoxMessages.AppendText(msg);
+            textBoxMessages.AppendText(NL);
+        });
+    }
 
     private void _namedPipePeer_OnNewMessage(object? sender, string msg)
     {
@@ -44,7 +54,6 @@ public partial class Form1 : Form
         {
             textBoxMessages.AppendText($"{_partnerName} disconnected");
             textBoxMessages.AppendText(NL);
-            _pipe.Connect();
         });
     }
 

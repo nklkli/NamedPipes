@@ -8,14 +8,12 @@ pipe.Connected += (_, msg) => Console.WriteLine(msg);
 pipe.Disconnected += (_, msg) =>
 {
     Console.WriteLine($"{partnerName} disconnected");
-    pipe.Connect();
 };
 pipe.Connect();
 Console.CancelKeyPress += Console_CancelKeyPress;
 
 while (!cancel)
-{
-    Console.WriteLine($"Type your message to {partnerName}:");
+{   
     string line =  Console.ReadLine();
     if (line.StartsWith("exit"))
     {

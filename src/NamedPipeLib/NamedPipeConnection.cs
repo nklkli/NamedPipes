@@ -8,11 +8,15 @@ public class NamedPipeConnection : IDisposable
     private readonly string _myName;
     private readonly string _partnerName;
     private bool _connectionToPartnerEstablashed = false;
-    NamedPipeClientStream _in;
-    NamedPipeServerStream _out;
+    NamedPipeClientStream _inPipe;
+    NamedPipeServerStream _outPipe;
     CancellationTokenSource _cancellationTokenSource;
     object _lock = new object();
 
+    /// <summary>
+    /// Automatically re-connect after partner disconnects?
+    /// </summary>
+    public bool AutoReconnect { get; set; } = true;
 
     public event EventHandler<string> Connecting;
 
@@ -34,12 +38,12 @@ public class NamedPipeConnection : IDisposable
     {
         this._myName = myName;
         this._partnerName = partnerName;
-        _cancellationTokenSource = new CancellationTokenSource();
     }
 
 
     public void Connect()
     {
+        _cancellationTokenSource = new CancellationTokenSource();
         Connecting?.Invoke(this, $"{_myName} starts connecting...");
         _connectionToPartnerEstablashed = false;
         _ = Task.Run(ConnectAsServer);
@@ -51,16 +55,15 @@ public class NamedPipeConnection : IDisposable
     {
         try
         {
-            _out = new NamedPipeServerStream(
+            _outPipe = new NamedPipeServerStream(
                pipeName: _myName,
-               direction: PipeDirection.Out,
-               maxNumberOfServerInstances: 1,
+               direction: PipeDirection.InOut,
+               maxNumberOfServerInstances: 2,
                transmissionMode: PipeTransmissionMode.Message,
                options: PipeOptions.None);
-            await _out.WaitForConnectionAsync(_cancellationTokenSource.Token);
+            await _outPipe.WaitForConnectionAsync(_cancellationTokenSource.Token);
             Connecting?.Invoke(this, "Server pipe accepted connection from client.");
-            FireConnectedEvent();
-            _ = Task.Run(ReadUntilDisconnected);
+            FireConnectedEvent();          
         }
         catch (Exception ex)
         {
@@ -73,14 +76,15 @@ public class NamedPipeConnection : IDisposable
     {
         try
         {
-            _in = new NamedPipeClientStream(
+            _inPipe = new NamedPipeClientStream(
                 serverName: ".",
                 pipeName: _partnerName,
-                direction: PipeDirection.In);
-            await _in.ConnectAsync(_cancellationTokenSource.Token);
-            _in.ReadMode = PipeTransmissionMode.Message;
+                direction: PipeDirection.InOut);
+            await _inPipe.ConnectAsync(_cancellationTokenSource.Token);
+            _inPipe.ReadMode = PipeTransmissionMode.Message;            
             Connecting?.Invoke(this, "Client pipe connected to server pipe.");
             FireConnectedEvent();
+            _ = Task.Run(ReadUntilDisconnected);
         }
         catch (Exception ex)
         {
@@ -92,7 +96,7 @@ public class NamedPipeConnection : IDisposable
     {
         lock (_lock)
         {
-            if (!_connectionToPartnerEstablashed)
+            if (!_connectionToPartnerEstablashed && (_inPipe?.IsConnected ?? false) && (_outPipe?.IsConnected ?? false))
             {
                 Connected?.Invoke(this, $"Connection to '{_partnerName}' established.");
                 _connectionToPartnerEstablashed = true;
@@ -112,7 +116,7 @@ public class NamedPipeConnection : IDisposable
         try
         {
             byte[] msg = Encoding.UTF8.GetBytes(message);
-            await _out.WriteAsync(msg, _cancellationTokenSource.Token);
+            await _outPipe.WriteAsync(msg, _cancellationTokenSource.Token);
         }
         catch (Exception ex)
         {
@@ -129,21 +133,23 @@ public class NamedPipeConnection : IDisposable
             while (true)
             {
                 string message = Encoding.UTF8.GetString(await ReadMessage());
-                if (_in.IsConnected)
+                if (_inPipe.IsConnected)
                     OnNewMessage?.Invoke(this, message);
                 else
-                {
-                    await _out.DisposeAsync();
-                    await _in.DisposeAsync();
+                {                   
+                    await _outPipe.DisposeAsync();
+                    await _inPipe.DisposeAsync();
                     Disconnected?.Invoke(this, _partnerName);
+                    if(AutoReconnect && !_cancellationTokenSource.IsCancellationRequested) 
+                        _ = Task.Run(Connect);
                     break;
                 }
             }
         }
         catch (Exception ex)
         {
-            await _out.DisposeAsync();
-            await _in.DisposeAsync();
+            await _outPipe.DisposeAsync();
+            await _inPipe.DisposeAsync();
             Disconnected?.Invoke(this, ex.ToString());
         }
     }
@@ -155,9 +161,9 @@ public class NamedPipeConnection : IDisposable
         byte[] buffer = new byte[0x1000]; // Read in 4 KB blocks
         do
         {
-            ms.Write(buffer, 0, await _in.ReadAsync(buffer, 0, buffer.Length, _cancellationTokenSource.Token));
+            ms.Write(buffer, 0, await _inPipe.ReadAsync(buffer, 0, buffer.Length, _cancellationTokenSource.Token));
         }
-        while (!_in.IsMessageComplete);
+        while (!_inPipe.IsMessageComplete);
         return ms.ToArray();
     }
 
@@ -165,7 +171,7 @@ public class NamedPipeConnection : IDisposable
 
     public void Dispose()
     {
-        _in?.Dispose();
-        _out?.Dispose();
+        _inPipe?.Dispose();
+        _outPipe?.Dispose();
     }
 }

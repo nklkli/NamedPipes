@@ -61,6 +61,7 @@ partial class Form1
             this.textBoxMessages.Multiline = true;
             this.textBoxMessages.Name = "textBoxMessages";
             this.textBoxMessages.ReadOnly = true;
+            this.textBoxMessages.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
             this.textBoxMessages.Size = new System.Drawing.Size(432, 317);
             this.textBoxMessages.TabIndex = 2;
             // 
