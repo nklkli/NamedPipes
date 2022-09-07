@@ -52,6 +52,7 @@ public partial class Form1 : Form
     {
         Invoke(() =>
         {
+            button1.Enabled = false;
             textBoxMessages.AppendText($"{_partnerName} disconnected");
             textBoxMessages.AppendText(NL);
         });
@@ -71,6 +72,7 @@ public partial class Form1 : Form
     {
         Invoke(() =>
         {
+            button1.Enabled = true;
             textBoxMessages.AppendText("Connected with: " + msg);
             textBoxMessages.AppendText(NL);
         });

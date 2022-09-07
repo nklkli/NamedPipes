@@ -58,7 +58,7 @@ public class NamedPipeConnection : IDisposable
             _outPipe = new NamedPipeServerStream(
                pipeName: _myName,
                direction: PipeDirection.InOut,
-               maxNumberOfServerInstances: 2,
+               maxNumberOfServerInstances: 1,
                transmissionMode: PipeTransmissionMode.Message,
                options: PipeOptions.None);
             await _outPipe.WaitForConnectionAsync(_cancellationTokenSource.Token);
