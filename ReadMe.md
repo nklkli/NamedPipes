@@ -12,7 +12,7 @@ over named pipes. Each can send and receive messages to the partner
 ![](docs/NamedPipes.png)
 
 Note:
-We could reverse the directions so that NamedPipeClientStream sends and NamePipeServerStream receives.
+We could have reverses directions so that NamedPipeClientStream sends and NamePipeServerStream receives.
 
 ## SOURCE
 
